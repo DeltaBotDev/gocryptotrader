@@ -466,6 +466,7 @@ func (g *Gateio) processSpotOrders(data []byte) error {
 		details[x] = order.Detail{
 			Amount:         resp.Result[x].Amount.Float64(),
 			Exchange:       g.Name,
+			ClientOrderID:  resp.Result[x].Text,
 			OrderID:        resp.Result[x].ID,
 			Side:           side,
 			Type:           orderType,
