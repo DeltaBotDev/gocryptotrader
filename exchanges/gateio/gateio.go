@@ -644,9 +644,8 @@ func (g *Gateio) PlaceSpotOrder(ctx context.Context, arg *CreateOrderRequestData
 		!strings.EqualFold(arg.Account, asset.Margin.String()) {
 		return nil, errors.New("only 'spot', 'cross_margin', and 'margin' area allowed")
 	}
-	if arg.Text != "" {
-		arg.Text = "t-" + arg.Text
-	} else {
+
+	if arg.Text == "" {
 		randomString, err := common.GenerateRandomString(10, common.NumberCharacters)
 		if err != nil {
 			return nil, err
