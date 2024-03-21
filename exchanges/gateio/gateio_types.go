@@ -2077,6 +2077,7 @@ type WsSpotOrder struct {
 	Type               string        `json:"type,omitempty"`
 	Account            string        `json:"account,omitempty"`
 	Side               string        `json:"side,omitempty"`
+	FinishAs           string        `json:"finish_as,omitempty"`
 	Amount             types.Number  `json:"amount,omitempty"`
 	Price              types.Number  `json:"price,omitempty"`
 	TimeInForce        string        `json:"time_in_force,omitempty"`
