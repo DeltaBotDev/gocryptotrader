@@ -70,7 +70,7 @@ const (
 // will ensure the appropriate headers are sent to OKx to use the testnet
 type testNetKey string
 
-var testNetVal = testNetKey("testnet")
+var TestNetVal = testNetKey("testnet")
 
 // Market Data Endpoints
 

@@ -4226,7 +4226,7 @@ func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.E
 		path := endpoint + requestPath
 		headers := make(map[string]string)
 		headers["Content-Type"] = "application/json"
-		if _, okay := ctx.Value(testNetVal).(bool); okay {
+		if _, okay := ctx.Value(TestNetVal).(bool); okay {
 			headers["x-simulated-trading"] = "1"
 		}
 		if authenticated {
