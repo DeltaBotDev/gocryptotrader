@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"log"
 	"os"
 	"strings"
@@ -60,19 +61,65 @@ func TestMain(m *testing.M) {
 		exchCfg.API.AuthenticatedSupport = true
 		exchCfg.API.AuthenticatedWebsocketSupport = true
 	}
-	if !useTestNet {
-		ok.Websocket = sharedtestvalues.NewTestWebsocket()
-	}
+	ok.Websocket = sharedtestvalues.NewTestWebsocket()
 	err = ok.Setup(exchCfg)
 	if err != nil {
 		log.Fatal(err)
 	}
 	request.MaxRequestJobs = 200
-	if !useTestNet {
-		ok.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
-		ok.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
-		setupWS()
+	ok.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
+	ok.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
+
+	err = ok.Websocket.SetupNewConnection(stream.ConnectionSetup{
+		URL:                  "wss://wspap.okx.com:8443/ws/v5/private",
+		ResponseCheckTimeout: exchange.DefaultWebsocketResponseCheckTimeout,
+		ResponseMaxLimit:     time.Second * 3,
+		Authenticated:        true,
+		RateLimit:            500,
+	})
+	if err != nil {
+		fmt.Println(err)
+		return
 	}
+	err = ok.Websocket.SetupNewConnection(stream.ConnectionSetup{
+		URL:                  "wss://wspap.okx.com:8443/ws/v5/public",
+		ResponseCheckTimeout: exchange.DefaultWebsocketResponseCheckTimeout,
+		ResponseMaxLimit:     time.Second * 3,
+		RateLimit:            500,
+	})
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	setupWS()
+
+	// 订阅盘口更新
+	// 根据配置生成默认订阅
+	subscription, err := ok.GenerateDefaultSubscriptions()
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	subs := []string{"orders", "balance_and_position"}
+	pairs, err := ok.GetEnabledPairs(asset.Spot)
+	for c := range subs {
+		for p := range pairs {
+			subscription = append(subscription, stream.ChannelSubscription{
+				Channel:  subs[c],
+				Asset:    asset.Spot,
+				Currency: pairs[p],
+			})
+		}
+	}
+
+	// 订阅, 订阅之后会自动刷新order book
+	err = ok.Subscribe(subscription)
+	if err != nil {
+		fmt.Println(err)
+	}
+
 	os.Exit(m.Run())
 }
 
@@ -607,11 +654,13 @@ func TestGetOrderList(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
 
-	if _, err := ok.GetOrderList(contextGenerate(), &OrderListRequestParams{
-		Limit: 1,
-	}); err != nil {
+	o, err := ok.GetOrderList(contextGenerate(), &OrderListRequestParams{
+		Limit: 100,
+	})
+	if err != nil {
 		t.Error("Okx GetOrderList() error", err)
 	}
+	fmt.Println(o)
 }
 
 func TestGet7And3MonthDayOrderHistory(t *testing.T) {
@@ -2015,6 +2064,7 @@ func TestFetchOrderbook(t *testing.T) {
 	if _, err := ok.FetchOrderbook(contextGenerate(), currency.NewPair(currency.BTC, currency.USDT), asset.Spot); err != nil {
 		t.Error("Okx FetchOrderbook() error", err)
 	}
+	select {}
 }
 
 func TestUpdateOrderbook(t *testing.T) {

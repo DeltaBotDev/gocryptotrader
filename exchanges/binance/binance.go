@@ -1253,15 +1253,17 @@ func (b *Binance) FetchSpotExchangeLimits(ctx context.Context) ([]order.MinMaxLe
 			return nil, err
 		}
 		var assets []asset.Item
-		for y := range spot.Symbols[x].Permissions {
-			switch spot.Symbols[x].Permissions[y] {
-			case "SPOT":
-				assets = append(assets, asset.Spot)
-			case "MARGIN":
-				assets = append(assets, asset.Margin)
-			default:
-				// "LEVERAGED", "TRD_GRP_003", "TRD_GRP_004", "TRD_GRP_005" etc are unused permissions
-				// for spot exchange limits
+		for _, permissionSets := range spot.Symbols[x].PermissionSets {
+			for _, set := range permissionSets {
+				switch set {
+				case "SPOT":
+					assets = append(assets, asset.Spot)
+				case "MARGIN":
+					assets = append(assets, asset.Margin)
+				default:
+					// "LEVERAGED", "TRD_GRP_003", "TRD_GRP_004", "TRD_GRP_005" etc are unused permissions
+					// for spot exchange limits
+				}
 			}
 		}
 
