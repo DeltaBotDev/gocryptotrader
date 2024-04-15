@@ -539,6 +539,7 @@ func (g *Gateio) processSpotBalances(data []byte) error {
 			Currency: code,
 			Asset:    asset.Spot,
 			Amount:   resp.Result[x].Available.Float64(),
+			Freeze:   resp.Result[x].Freeze.Float64(),
 		}
 	}
 	g.Websocket.DataHandler <- accountChanges
@@ -564,6 +565,7 @@ func (g *Gateio) processMarginBalances(data []byte) error {
 			Currency: code,
 			Asset:    asset.Margin,
 			Amount:   resp.Result[x].Available.Float64(),
+			Freeze:   resp.Result[x].Freeze.Float64(),
 		}
 	}
 	g.Websocket.DataHandler <- accountChange
@@ -604,6 +606,7 @@ func (g *Gateio) processCrossMarginBalance(data []byte) error {
 			Currency: code,
 			Asset:    asset.Margin,
 			Amount:   resp.Result[x].Available.Float64(),
+			Freeze:   resp.Result[x].Freeze.Float64(),
 			Account:  resp.Result[x].User,
 		}
 	}

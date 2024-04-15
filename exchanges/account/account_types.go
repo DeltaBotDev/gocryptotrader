@@ -67,6 +67,7 @@ type Change struct {
 	Currency currency.Code
 	Asset    asset.Item
 	Amount   float64
+	Freeze   float64
 	Account  string
 }
 

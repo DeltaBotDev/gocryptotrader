@@ -2125,6 +2125,7 @@ type WsSpotBalance struct {
 	Change      types.Number `json:"change"`
 	Total       types.Number `json:"total"`
 	Available   types.Number `json:"available"`
+	Freeze      types.Number `json:"freeze"`
 }
 
 // WsMarginBalance represents margin account balance push data
@@ -2161,6 +2162,7 @@ type WsCrossMarginBalance struct {
 	Change      string       `json:"change"`
 	Total       types.Number `json:"total"`
 	Available   types.Number `json:"available"`
+	Freeze      types.Number `json:"freeze"`
 }
 
 // WsCrossMarginLoan represents a cross margin loan push data
