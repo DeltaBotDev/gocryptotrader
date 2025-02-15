@@ -380,18 +380,19 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 				err)
 		}
 		b.Websocket.DataHandler <- stream.KlineData{
-			Timestamp:  kline.EventTime,
-			Pair:       pair,
-			AssetType:  asset.Spot,
-			Exchange:   b.Name,
-			StartTime:  kline.Kline.StartTime,
-			CloseTime:  kline.Kline.CloseTime,
-			Interval:   kline.Kline.Interval,
-			OpenPrice:  kline.Kline.OpenPrice.Float64(),
-			ClosePrice: kline.Kline.ClosePrice.Float64(),
-			HighPrice:  kline.Kline.HighPrice.Float64(),
-			LowPrice:   kline.Kline.LowPrice.Float64(),
-			Volume:     kline.Kline.Volume.Float64(),
+			Timestamp:   kline.EventTime,
+			Pair:        pair,
+			AssetType:   asset.Spot,
+			Exchange:    b.Name,
+			StartTime:   kline.Kline.StartTime,
+			CloseTime:   kline.Kline.CloseTime,
+			Interval:    kline.Kline.Interval,
+			OpenPrice:   kline.Kline.OpenPrice.Float64(),
+			ClosePrice:  kline.Kline.ClosePrice.Float64(),
+			HighPrice:   kline.Kline.HighPrice.Float64(),
+			LowPrice:    kline.Kline.LowPrice.Float64(),
+			Volume:      kline.Kline.Volume.Float64(),
+			KlineClosed: kline.Kline.KlineClosed,
 		}
 		return nil
 	case "depth":
