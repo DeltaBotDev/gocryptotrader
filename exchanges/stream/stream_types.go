@@ -91,18 +91,19 @@ type FundingData struct {
 
 // KlineData defines kline feed
 type KlineData struct {
-	Timestamp  time.Time
-	Pair       currency.Pair
-	AssetType  asset.Item
-	Exchange   string
-	StartTime  time.Time
-	CloseTime  time.Time
-	Interval   string
-	OpenPrice  float64
-	ClosePrice float64
-	HighPrice  float64
-	LowPrice   float64
-	Volume     float64
+	Timestamp   time.Time
+	Pair        currency.Pair
+	AssetType   asset.Item
+	Exchange    string
+	StartTime   time.Time
+	CloseTime   time.Time
+	Interval    string
+	OpenPrice   float64
+	ClosePrice  float64
+	HighPrice   float64
+	LowPrice    float64
+	Volume      float64
+	KlineClosed bool `json:"x"`
 }
 
 // WebsocketPositionUpdated reflects a change in orders/contracts on an exchange
