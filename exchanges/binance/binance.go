@@ -916,7 +916,11 @@ func (b *Binance) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, m
 	if result == nil {
 		return nil
 	}
-	return json.Unmarshal(interim, result)
+	err = json.Unmarshal(interim, &result)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // CheckLimit checks value against a variable list
