@@ -1,9 +1,12 @@
 package utils
 
 import (
+	"encoding/json"
 	"fmt"
 	"runtime"
 	"testing"
+
+	"github.com/thrasher-corp/gocryptotrader/exchanges/binance"
 )
 
 func TestAdjustGoMaxProcs(t *testing.T) {
@@ -53,5 +56,15 @@ func TestAdjustGoMaxProcs(t *testing.T) {
 		if err := checker(tester[x].Setting, tester[x].Expected); err != nil {
 			t.Errorf("%d failed. %s", x, err)
 		}
+	}
+}
+
+func TestRound(t *testing.T) {
+	d := []byte("[\n    {\n        \"id\": \"d6981a9a9c78426f959f644769a619fa\",\n        \"amount\": \"70.832\",\n        \"transactionFee\": \"0.018\",\n        \"coin\": \"NEAR\",\n        \"status\": 6,\n        \"address\": \"deltabottest.near\",\n        \"txId\": \"CMiNShYtkEdvuVJyje8vjCUfzi2FzwSnwedJkzpyVYBE\",\n        \"applyTime\": \"2025-11-28 09:45:08\",\n        \"network\": \"NEAR\",\n        \"transferType\": 0,\n        \"info\": \"9c484fa5d2d069569ba063fc555c34e621ccd88fdbb0295fc79bad232621c5c1,106259909335036\",\n        \"confirmNo\": 20,\n        \"walletType\": 0,\n        \"txKey\": \"\",\n        \"completeTime\": \"2025-11-28 09:46:14\"\n    }\n]")
+	var l []binance.WithdrawStatusResponse
+	err := json.Unmarshal(d, &l)
+	if err != nil {
+		fmt.Println(err)
+		return
 	}
 }

@@ -20,25 +20,33 @@ var errInvalidTimestampFormat = errors.New("invalid timestamp format")
 
 // UnmarshalJSON deserializes json, and timestamp information.
 func (t *Time) UnmarshalJSON(data []byte) error {
-	s := string(data)
-
-	if s[0] == '"' {
-		s = s[1 : len(s)-1]
+	s := strings.Trim(string(data), `"`)
+	if s == "" || s == "null" {
+		return nil
 	}
 
-	if s == "" || s[0] == 'n' || s == "0" {
-		return nil
+	// 1. 尝试日期格式
+	layouts := []string{
+		"2006-01-02 15:04:05",
+		"2006/01/02 15:04:05",
+		time.RFC3339,
+		time.RFC3339Nano,
+	}
+
+	for _, layout := range layouts {
+		if parsed, err := time.ParseInLocation(layout, s, time.Local); err == nil {
+			*t = Time(parsed)
+			return nil
+		}
 	}
 
 	if target := strings.Index(s, "."); target != -1 {
 		s = s[:target] + s[target+1:]
-
 		if strings.Trim(s, "0") == "" {
 			return nil
 		}
 	}
 
-	// Expects a string of length 10 (seconds), 13 (milliseconds), 16 (microseconds), or 19 (nanoseconds) representing a Unix timestamp
 	switch len(s) {
 	case 12, 15, 18:
 		s += "0"
