@@ -6,11 +6,14 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/gofrs/uuid"
 	"github.com/gorilla/websocket"
+	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -22,8 +25,9 @@ import (
 )
 
 const (
-	binanceDefaultWebsocketURL = "wss://stream.binance.com:9443/stream"
-	pingDelay                  = time.Minute * 9
+	binanceDefaultWebsocketURL        = "wss://stream.binance.com:9443/stream"
+	binanceDefaultAccountWebsocketURL = "wss://ws-api.binance.com:443/ws-api/v3"
+	pingDelay                         = time.Minute * 9
 )
 
 var listenKey string
@@ -50,24 +54,24 @@ func (b *Binance) WsConnect() error {
 	dialer.HandshakeTimeout = b.Config.HTTPTimeout
 	dialer.Proxy = http.ProxyFromEnvironment
 	var err error
-	if b.Websocket.CanUseAuthenticatedEndpoints() {
-		listenKey, err = b.GetWsAuthStreamKey(context.TODO())
-		if err != nil {
-			b.Websocket.SetCanUseAuthenticatedEndpoints(false)
-			log.Errorf(log.ExchangeSys,
-				"%v unable to connect to authenticated Websocket. Error: %s",
-				b.Name,
-				err)
-		} else {
-			// cleans on failed connection
-			clean := strings.Split(b.Websocket.GetWebsocketURL(), "?streams=")
-			authPayload := clean[0] + "?streams=" + listenKey
-			err = b.Websocket.SetWebsocketURL(authPayload, false, false)
-			if err != nil {
-				return err
-			}
-		}
-	}
+	//if b.Websocket.CanUseAuthenticatedEndpoints() {
+	//	listenKey, err = b.GetWsAuthStreamKey(context.TODO())
+	//	if err != nil {
+	//		b.Websocket.SetCanUseAuthenticatedEndpoints(false)
+	//		log.Errorf(log.ExchangeSys,
+	//			"%v unable to connect to authenticated Websocket. Error: %s",
+	//			b.Name,
+	//			err)
+	//	} else {
+	//		// cleans on failed connection
+	//		clean := strings.Split(b.Websocket.GetWebsocketURL(), "?streams=")
+	//		authPayload := clean[0] + "?streams=" + listenKey
+	//		err = b.Websocket.SetWebsocketURL(authPayload, false, false)
+	//		if err != nil {
+	//			return err
+	//		}
+	//	}
+	//}
 
 	err = b.Websocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
@@ -76,9 +80,9 @@ func (b *Binance) WsConnect() error {
 			err)
 	}
 
-	if b.Websocket.CanUseAuthenticatedEndpoints() {
-		go b.KeepAuthKeyAlive()
-	}
+	//if b.Websocket.CanUseAuthenticatedEndpoints() {
+	//	go b.KeepAuthKeyAlive()
+	//}
 
 	b.Websocket.Conn.SetupPingHandler(stream.PingHandler{
 		UseGorillaHandler: true,
@@ -87,9 +91,113 @@ func (b *Binance) WsConnect() error {
 	})
 
 	b.Websocket.Wg.Add(1)
-	go b.wsReadData()
+	go b.wsReadData(b.Websocket.Conn)
 
 	b.setupOrderbookManager()
+	if b.Websocket.CanUseAuthenticatedEndpoints() {
+		var authDialer websocket.Dialer
+		authDialer.ReadBufferSize = 8192
+		authDialer.WriteBufferSize = 8192
+		err = b.WsAuth(context.TODO(), &authDialer)
+		if err != nil {
+			log.Errorf(log.ExchangeSys, "Error connecting auth socket: %s\n", err.Error())
+			b.Websocket.SetCanUseAuthenticatedEndpoints(false)
+		}
+	}
+	return nil
+}
+
+// WsAuth will connect to Okx's Private websocket connection and Authenticate with a login payload.
+func (b *Binance) WsAuth(ctx context.Context, dialer *websocket.Dialer) error {
+	if !b.Websocket.CanUseAuthenticatedEndpoints() {
+		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", b.Name)
+	}
+	err := b.Websocket.AuthConn.Dial(dialer, http.Header{})
+	if err != nil {
+		return fmt.Errorf("%v Websocket connection %v error. Error %v", b.Name, binanceDefaultAccountWebsocketURL, err)
+	}
+	b.Websocket.Wg.Add(1)
+	go b.wsReadData(b.Websocket.AuthConn)
+	b.Websocket.AuthConn.SetupPingHandler(stream.PingHandler{
+		UseGorillaHandler: true,
+		MessageType:       websocket.PongMessage,
+		Delay:             pingDelay,
+	})
+
+	creds, err := b.GetCredentials(ctx)
+	if err != nil {
+		return err
+	}
+	b.Websocket.SetCanUseAuthenticatedEndpoints(true)
+
+	// signature
+	params := url.Values{}
+	timeUnix := time.Now().UnixMilli()
+	params.Set("timestamp", strconv.FormatInt(timeUnix, 10))
+	params.Set("apiKey", creds.Key)
+	signature := params.Encode()
+	var hmacSigned []byte
+	hmacSigned, err = crypto.GetHMAC(crypto.HashSHA256,
+		[]byte(signature),
+		[]byte(creds.Secret))
+	if err != nil {
+		return err
+	}
+	hmacSignedStr := crypto.HexEncodeToString(hmacSigned)
+
+	uuider, err := uuid.NewV4()
+	if err != nil {
+		return err
+	}
+
+	request := WebsocketEventRequest{
+		ID:     uuider.String(),
+		Method: "userDataStream.subscribe.signature",
+		Params: WebsocketLoginData{
+			ApiKey:    creds.Key,
+			Timestamp: timeUnix,
+			Signature: hmacSignedStr,
+		},
+	}
+	err = b.Websocket.AuthConn.SendJSONMessage(request)
+	if err != nil {
+		return err
+	}
+	//timer := time.NewTimer(b.WebsocketResponseCheckTimeout)
+	//randomID, err := common.GenerateRandomString(16)
+	//if err != nil {
+	//	return fmt.Errorf("%w, generating random string for incoming websocket response failed", err)
+	//}
+	//wsResponse := make(chan *wsIncomingData)
+	//b.WsResponseMultiplexer.Register <- &wsRequestInfo{
+	//	ID:    randomID,
+	//	Chan:  wsResponse,
+	//	Event: operationLogin,
+	//}
+	//ok.WsRequestSemaphore <- 1
+	//defer func() {
+	//	<-ok.WsRequestSemaphore
+	//}()
+	//defer func() { ok.WsResponseMultiplexer.Unregister <- randomID }()
+	//for {
+	//	select {
+	//	case data := <-wsResponse:
+	//		if data.Event == operationLogin && data.Code == "0" {
+	//			ok.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	//			return nil
+	//		} else if data.Event == "error" &&
+	//			(data.Code == "60022" || data.Code == "60009") {
+	//			ok.Websocket.SetCanUseAuthenticatedEndpoints(false)
+	//			return fmt.Errorf("authentication failed with error: %v", ErrorCodes[data.Code])
+	//		}
+	//		continue
+	//	case <-timer.C:
+	//		timer.Stop()
+	//		return fmt.Errorf("%s websocket connection: timeout waiting for response with an operation: %v",
+	//			ok.Name,
+	//			request.Operation)
+	//	}
+	//}
 	return nil
 }
 
@@ -141,16 +249,14 @@ func (b *Binance) KeepAuthKeyAlive() {
 }
 
 // wsReadData receives and passes on websocket messages for processing
-func (b *Binance) wsReadData() {
+func (b *Binance) wsReadData(ws stream.Connection) {
 	defer b.Websocket.Wg.Done()
-
 	for {
-		resp := b.Websocket.Conn.ReadMessage()
+		resp := ws.ReadMessage()
 		if resp.Raw == nil {
 			return
 		}
-		err := b.wsHandleData(resp.Raw)
-		if err != nil {
+		if err := b.wsHandleData(resp.Raw); err != nil {
 			b.Websocket.DataHandler <- err
 		}
 	}
@@ -166,6 +272,12 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 	if r, ok := multiStreamData["result"]; ok {
 		if r == nil {
 			return nil
+		}
+		switch rm := r.(type) {
+		case map[string]interface{}:
+			if _, ok := rm["subscriptionId"]; ok {
+				return nil
+			}
 		}
 	}
 
@@ -445,6 +557,112 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 						Message: b.Name + stream.UnhandledMessage + string(respRaw),
 					}
 				}
+			}
+		}
+	}
+	if newdata, ok := multiStreamData["event"].(map[string]interface{}); ok {
+		if e, ok := newdata["e"].(string); ok {
+			switch e {
+			case "outboundAccountPosition":
+				var data wsNewAccountPosition
+				err := json.Unmarshal(respRaw, &data)
+				if err != nil {
+					return fmt.Errorf("%v - Could not convert to outboundAccountPosition structure %s",
+						b.Name,
+						err)
+				}
+				var wsData = wsAccountPosition{
+					Stream: "",
+					Data:   data.Data,
+				}
+				b.Websocket.DataHandler <- wsData
+				return nil
+			case "balanceUpdate":
+				var data wsNewBalanceUpdate
+				err := json.Unmarshal(respRaw, &data)
+				if err != nil {
+					return fmt.Errorf("%v - Could not convert to balanceUpdate structure %s",
+						b.Name,
+						err)
+				}
+				var wsData = wsBalanceUpdate{
+					Stream: "",
+					Data:   data.Data,
+				}
+				b.Websocket.DataHandler <- wsData
+				return nil
+			case "executionReport":
+				var data wsNewOrderUpdate
+				err := json.Unmarshal(respRaw, &data)
+				if err != nil {
+					return fmt.Errorf("%v - Could not convert to executionReport structure %s",
+						b.Name,
+						err)
+				}
+				averagePrice := 0.0
+				if data.Data.CumulativeFilledQuantity != 0 {
+					averagePrice = data.Data.CumulativeQuoteTransactedQuantity / data.Data.CumulativeFilledQuantity
+				}
+				remainingAmount := data.Data.Quantity - data.Data.CumulativeFilledQuantity
+				pair, assetType, err := b.GetRequestFormattedPairAndAssetType(data.Data.Symbol)
+				if err != nil {
+					return err
+				}
+				var feeAsset currency.Code
+				if data.Data.CommissionAsset != "" {
+					feeAsset = currency.NewCode(data.Data.CommissionAsset)
+				}
+				orderID := strconv.FormatInt(data.Data.OrderID, 10)
+				orderStatus, err := stringToOrderStatus(data.Data.OrderStatus)
+				if err != nil {
+					b.Websocket.DataHandler <- order.ClassificationError{
+						Exchange: b.Name,
+						OrderID:  orderID,
+						Err:      err,
+					}
+				}
+				clientOrderID := data.Data.ClientOrderID
+				if orderStatus == order.Cancelled {
+					clientOrderID = data.Data.CancelledClientOrderID
+				}
+				orderType, err := order.StringToOrderType(data.Data.OrderType)
+				if err != nil {
+					b.Websocket.DataHandler <- order.ClassificationError{
+						Exchange: b.Name,
+						OrderID:  orderID,
+						Err:      err,
+					}
+				}
+				orderSide, err := order.StringToOrderSide(data.Data.Side)
+				if err != nil {
+					b.Websocket.DataHandler <- order.ClassificationError{
+						Exchange: b.Name,
+						OrderID:  orderID,
+						Err:      err,
+					}
+				}
+				b.Websocket.DataHandler <- &order.Detail{
+					Price:                data.Data.Price,
+					Amount:               data.Data.Quantity,
+					AverageExecutedPrice: averagePrice,
+					ExecutedAmount:       data.Data.CumulativeFilledQuantity,
+					RemainingAmount:      remainingAmount,
+					Cost:                 data.Data.CumulativeQuoteTransactedQuantity,
+					CostAsset:            pair.Quote,
+					Fee:                  data.Data.Commission,
+					FeeAsset:             feeAsset,
+					Exchange:             b.Name,
+					OrderID:              orderID,
+					ClientOrderID:        clientOrderID,
+					Type:                 orderType,
+					Side:                 orderSide,
+					Status:               orderStatus,
+					AssetType:            assetType,
+					Date:                 data.Data.OrderCreationTime,
+					LastUpdated:          data.Data.TransactionTime,
+					Pair:                 pair,
+				}
+				return nil
 			}
 		}
 	}

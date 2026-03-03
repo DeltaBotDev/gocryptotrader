@@ -753,6 +753,19 @@ type UserAccountStream struct {
 	ListenKey string `json:"listenKey"`
 }
 
+// WebsocketEventRequest contains event data for a websocket channel
+type WebsocketEventRequest struct {
+	ID     string             `json:"id"`
+	Method string             `json:"method"`
+	Params WebsocketLoginData `json:"params"`
+}
+
+type WebsocketLoginData struct {
+	ApiKey    string `json:"apiKey"`
+	Timestamp int64  `json:"timestamp"`
+	Signature string `json:"signature"`
+}
+
 type wsAccountInfo struct {
 	Stream string            `json:"stream"`
 	Data   WsAccountInfoData `json:"data"`
@@ -782,6 +795,11 @@ type wsAccountPosition struct {
 	Data   WsAccountPositionData `json:"data"`
 }
 
+type wsNewAccountPosition struct {
+	Stream string                `json:"stream"`
+	Data   WsAccountPositionData `json:"data"`
+}
+
 // WsAccountPositionData defines websocket account position data
 type WsAccountPositionData struct {
 	Currencies []struct {
@@ -799,6 +817,11 @@ type wsBalanceUpdate struct {
 	Data   WsBalanceUpdateData `json:"data"`
 }
 
+type wsNewBalanceUpdate struct {
+	Stream string              `json:"stream"`
+	Data   WsBalanceUpdateData `json:"event"`
+}
+
 // WsBalanceUpdateData defines websocket account balance data
 type WsBalanceUpdateData struct {
 	EventTime    time.Time `json:"E"`
@@ -811,6 +834,11 @@ type WsBalanceUpdateData struct {
 type wsOrderUpdate struct {
 	Stream string            `json:"stream"`
 	Data   WsOrderUpdateData `json:"data"`
+}
+
+type wsNewOrderUpdate struct {
+	Stream string            `json:"stream"`
+	Data   WsOrderUpdateData `json:"event"`
 }
 
 // WsOrderUpdateData defines websocket account order update data

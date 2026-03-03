@@ -370,6 +370,28 @@ func (a *wsAccountPosition) UnmarshalJSON(data []byte) error {
 }
 
 // UnmarshalJSON deserialises the JSON info, including the timestamp
+func (a *wsNewAccountPosition) UnmarshalJSON(data []byte) error {
+	type Alias wsAccountPosition
+	aux := &struct {
+		Data struct {
+			EventTime   binanceTime `json:"E"`
+			LastUpdated binanceTime `json:"u"`
+			*WsAccountPositionData
+		} `json:"event"`
+		*Alias
+	}{
+		Alias: (*Alias)(a),
+	}
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	a.Data = *aux.Data.WsAccountPositionData
+	a.Data.EventTime = aux.Data.EventTime.Time()
+	a.Data.LastUpdated = aux.Data.LastUpdated.Time()
+	return nil
+}
+
+// UnmarshalJSON deserialises the JSON info, including the timestamp
 func (a *wsBalanceUpdate) UnmarshalJSON(data []byte) error {
 	type Alias wsBalanceUpdate
 	aux := &struct {
@@ -378,6 +400,28 @@ func (a *wsBalanceUpdate) UnmarshalJSON(data []byte) error {
 			ClearTime binanceTime `json:"T"`
 			*WsBalanceUpdateData
 		} `json:"data"`
+		*Alias
+	}{
+		Alias: (*Alias)(a),
+	}
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	a.Data = *aux.Data.WsBalanceUpdateData
+	a.Data.EventTime = aux.Data.EventTime.Time()
+	a.Data.ClearTime = aux.Data.ClearTime.Time()
+	return nil
+}
+
+// UnmarshalJSON deserialises the JSON info, including the timestamp
+func (a *wsNewBalanceUpdate) UnmarshalJSON(data []byte) error {
+	type Alias wsBalanceUpdate
+	aux := &struct {
+		Data struct {
+			EventTime binanceTime `json:"E"`
+			ClearTime binanceTime `json:"T"`
+			*WsBalanceUpdateData
+		} `json:"event"`
 		*Alias
 	}{
 		Alias: (*Alias)(a),
@@ -402,6 +446,32 @@ func (a *wsOrderUpdate) UnmarshalJSON(data []byte) error {
 			WorkingTime       binanceTime `json:"W"`
 			*WsOrderUpdateData
 		} `json:"data"`
+		*Alias
+	}{
+		Alias: (*Alias)(a),
+	}
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	a.Data = *aux.Data.WsOrderUpdateData
+	a.Data.EventTime = aux.Data.EventTime.Time()
+	a.Data.OrderCreationTime = aux.Data.OrderCreationTime.Time()
+	a.Data.TransactionTime = aux.Data.TransactionTime.Time()
+	a.Data.WorkingTime = aux.Data.WorkingTime.Time()
+	return nil
+}
+
+// UnmarshalJSON deserialises the JSON info, including the timestamp
+func (a *wsNewOrderUpdate) UnmarshalJSON(data []byte) error {
+	type Alias wsNewOrderUpdate
+	aux := &struct {
+		Data struct {
+			EventTime         binanceTime `json:"E"`
+			OrderCreationTime binanceTime `json:"O"`
+			TransactionTime   binanceTime `json:"T"`
+			WorkingTime       binanceTime `json:"W"`
+			*WsOrderUpdateData
+		} `json:"event"`
 		*Alias
 	}{
 		Alias: (*Alias)(a),
