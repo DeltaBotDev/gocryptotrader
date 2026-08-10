@@ -1455,6 +1455,31 @@ type CancelOrderByIDResponse struct {
 	Account      string `json:"account"`
 }
 
+// SpotOrderStopTrigger represents spot order stop profit or stop loss amend parameters.
+type SpotOrderStopTrigger struct {
+	TriggerPrice types.Number `json:"trigger_price,omitempty"`
+	OrderPrice   types.Number `json:"order_price,omitempty"`
+}
+
+// AmendBatchSpotOrderParam represents a batch spot order amend request item.
+type AmendBatchSpotOrderParam struct {
+	OrderID      string                `json:"order_id"`
+	CurrencyPair currency.Pair         `json:"currency_pair"`
+	Account      string                `json:"account,omitempty"`
+	Amount       types.Number          `json:"amount,omitempty"`
+	Price        types.Number          `json:"price,omitempty"`
+	AmendText    string                `json:"amend_text,omitempty"`
+	StopProfit   *SpotOrderStopTrigger `json:"stop_profit,omitempty"`
+	StopLoss     *SpotOrderStopTrigger `json:"stop_loss,omitempty"`
+}
+
+// AmendBatchSpotOrderResponse represents a batch spot order amend response item.
+type AmendBatchSpotOrderResponse struct {
+	OrderID   string `json:"order_id"`
+	AmendText string `json:"amend_text"`
+	SpotOrder
+}
+
 // SpotPersonalTradeHistory represents personal trading history.
 type SpotPersonalTradeHistory struct {
 	TradeID      string       `json:"id"`

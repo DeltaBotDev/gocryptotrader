@@ -46,6 +46,7 @@ const (
 	gateioSpotClosePositionWhenCrossCurrencyDisabledPath = "spot/cross_liquidate_orders"
 	gateioSpotOrders                                     = "spot/orders"
 	gateioSpotCancelBatchOrders                          = "spot/cancel_batch_orders"
+	gateioSpotAmendBatchOrders                           = "spot/amend_batch_orders"
 	gateioSpotMyTrades                                   = "spot/my_trades"
 	gateioSpotServerTime                                 = "spot/time"
 	gateioSpotAllCountdown                               = "spot/countdown_cancel_all"
@@ -759,6 +760,31 @@ func (g *Gateio) AmendSpotOrder(ctx context.Context, orderID string, currencyPai
 	}
 	var resp *SpotOrder
 	return resp, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotPlaceOrdersEPL, http.MethodPatch, gateioSpotOrders+"/"+orderID, params, arg, &resp)
+}
+
+// AmendBatchSpotOrders modifies up to 5 open spot, unified, or isolated margin orders.
+func (g *Gateio) AmendBatchSpotOrders(ctx context.Context, args []AmendBatchSpotOrderParam) ([]AmendBatchSpotOrderResponse, error) {
+	if len(args) == 0 {
+		return nil, errNoValidParameterPassed
+	} else if len(args) > 5 {
+		return nil, fmt.Errorf("%w maximum order size to amend is 5", errInvalidOrderSize)
+	}
+	for x := range args {
+		if args[x].OrderID == "" {
+			return nil, errInvalidOrderID
+		}
+		if args[x].CurrencyPair.IsEmpty() {
+			return nil, currency.ErrCurrencyPairEmpty
+		}
+		if args[x].Amount <= 0 && args[x].Price <= 0 {
+			return nil, errNoValidParameterPassed
+		}
+		if args[x].Amount > 0 && args[x].Price > 0 {
+			return nil, errors.New("only can choose one of amount or price")
+		}
+	}
+	var resp []AmendBatchSpotOrderResponse
+	return resp, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotPlaceOrdersEPL, http.MethodPost, gateioSpotAmendBatchOrders, nil, &args, &resp)
 }
 
 // CancelSingleSpotOrder cancels a single order
