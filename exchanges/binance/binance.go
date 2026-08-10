@@ -58,6 +58,7 @@ const (
 	// Authenticated endpoints
 	newOrderTest      = "/api/v3/order/test"
 	orderEndpoint     = "/api/v3/order"
+	cancelReplace     = "/api/v3/order/cancelReplace"
 	openOrders        = "/api/v3/openOrders"
 	allOrders         = "/api/v3/allOrders"
 	accountInfo       = "/api/v3/account"
@@ -611,6 +612,16 @@ func (b *Binance) NewOrderTest(ctx context.Context, o *NewOrderRequest) error {
 	return b.newOrder(ctx, newOrderTest, o, &resp)
 }
 
+// CancelReplaceOrder cancels an existing open order and places a new order on the same symbol.
+func (b *Binance) CancelReplaceOrder(ctx context.Context, o *CancelReplaceOrderRequest) (CancelReplaceOrderResponse, error) {
+	var resp CancelReplaceOrderResponse
+	params, err := b.cancelReplaceOrderParams(o)
+	if err != nil {
+		return resp, err
+	}
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodPost, cancelReplace, params, spotOrderRate, &resp)
+}
+
 func (b *Binance) newOrder(ctx context.Context, api string, o *NewOrderRequest, resp *NewOrderResponse) error {
 	params := url.Values{}
 	symbol, err := b.FormatSymbol(o.Symbol, asset.Spot)
@@ -648,6 +659,97 @@ func (b *Binance) newOrder(ctx context.Context, api string, o *NewOrderRequest, 
 		params.Set("newOrderRespType", o.NewOrderRespType)
 	}
 	return b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodPost, api, params, spotOrderRate, resp)
+}
+
+func (b *Binance) cancelReplaceOrderParams(o *CancelReplaceOrderRequest) (url.Values, error) {
+	if o == nil {
+		return nil, common.ErrNilPointer
+	}
+	if o.Side == "" {
+		return nil, order.ErrSideIsInvalid
+	}
+	if o.TradeType == "" {
+		return nil, order.ErrTypeIsInvalid
+	}
+	if o.CancelReplaceMode == "" {
+		return nil, errors.New("cancel replace mode must be set")
+	}
+	if o.CancelOrderID == 0 && o.CancelOrigClientOrderID == "" {
+		return nil, errors.New("cancelOrderId or cancelOrigClientOrderId must be set")
+	}
+	symbol, err := b.FormatSymbol(o.Symbol, asset.Spot)
+	if err != nil {
+		return nil, err
+	}
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	params.Set("side", o.Side)
+	params.Set("type", string(o.TradeType))
+	params.Set("cancelReplaceMode", string(o.CancelReplaceMode))
+	if o.TimeInForce != "" {
+		params.Set("timeInForce", string(o.TimeInForce))
+	}
+	if o.Quantity > 0 {
+		params.Set("quantity", strconv.FormatFloat(o.Quantity, 'f', -1, 64))
+	}
+	if o.QuoteOrderQty > 0 {
+		params.Set("quoteOrderQty", strconv.FormatFloat(o.QuoteOrderQty, 'f', -1, 64))
+	}
+	if o.Price > 0 {
+		params.Set("price", strconv.FormatFloat(o.Price, 'f', -1, 64))
+	}
+	if o.CancelNewClientOrderID != "" {
+		params.Set("cancelNewClientOrderId", o.CancelNewClientOrderID)
+	}
+	if o.CancelOrigClientOrderID != "" {
+		params.Set("cancelOrigClientOrderId", o.CancelOrigClientOrderID)
+	}
+	if o.CancelOrderID != 0 {
+		params.Set("cancelOrderId", strconv.FormatInt(o.CancelOrderID, 10))
+	}
+	if o.NewClientOrderID != "" {
+		params.Set("newClientOrderId", o.NewClientOrderID)
+	}
+	if o.StrategyID != 0 {
+		params.Set("strategyId", strconv.FormatInt(o.StrategyID, 10))
+	}
+	if o.StrategyType != 0 {
+		params.Set("strategyType", strconv.FormatInt(o.StrategyType, 10))
+	}
+	if o.StopPrice > 0 {
+		params.Set("stopPrice", strconv.FormatFloat(o.StopPrice, 'f', -1, 64))
+	}
+	if o.TrailingDelta != 0 {
+		params.Set("trailingDelta", strconv.FormatInt(o.TrailingDelta, 10))
+	}
+	if o.IcebergQty > 0 {
+		params.Set("icebergQty", strconv.FormatFloat(o.IcebergQty, 'f', -1, 64))
+	}
+	if o.NewOrderRespType != "" {
+		params.Set("newOrderRespType", o.NewOrderRespType)
+	}
+	if o.SelfTradePreventionMode != "" {
+		params.Set("selfTradePreventionMode", o.SelfTradePreventionMode)
+	}
+	if o.CancelRestrictions != "" {
+		params.Set("cancelRestrictions", string(o.CancelRestrictions))
+	}
+	if o.OrderRateLimitExceededMode != "" {
+		params.Set("orderRateLimitExceededMode", string(o.OrderRateLimitExceededMode))
+	}
+	if o.PegPriceType != "" {
+		params.Set("pegPriceType", o.PegPriceType)
+	}
+	if o.PegOffsetValue != 0 {
+		params.Set("pegOffsetValue", strconv.FormatInt(o.PegOffsetValue, 10))
+	}
+	if o.PegOffsetType != "" {
+		params.Set("pegOffsetType", o.PegOffsetType)
+	}
+	if o.RecvWindow != 0 {
+		params.Set("recvWindow", strconv.FormatFloat(o.RecvWindow, 'f', -1, 64))
+	}
+	return params, nil
 }
 
 // CancelExistingOrder sends a cancel order to Binance

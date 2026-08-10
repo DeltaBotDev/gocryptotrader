@@ -91,6 +91,26 @@ func (a *NewOrderResponse) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// UnmarshalJSON deserialises the JSON info, including the timestamps.
+func (a *CancelReplaceOrderDetails) UnmarshalJSON(data []byte) error {
+	type Alias CancelReplaceOrderDetails
+	aux := &struct {
+		TransactionTime binanceTime `json:"transactTime"`
+		WorkingTime     binanceTime `json:"workingTime"`
+		*Alias
+	}{
+		Alias: (*Alias)(a),
+	}
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	if aux != nil {
+		a.TransactionTime = aux.TransactionTime.Time()
+		a.WorkingTime = aux.WorkingTime.Time()
+	}
+	return nil
+}
+
 // UnmarshalJSON deserialises the JSON info, including the timestamp
 func (a *TradeStream) UnmarshalJSON(data []byte) error {
 	type Alias TradeStream

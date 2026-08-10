@@ -1476,6 +1476,54 @@ func TestNewOrderTest(t *testing.T) {
 	}
 }
 
+func TestCancelReplaceOrderParams(t *testing.T) {
+	t.Parallel()
+
+	_, err := b.cancelReplaceOrderParams(nil)
+	if !errors.Is(err, common.ErrNilPointer) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrNilPointer)
+	}
+
+	params, err := b.cancelReplaceOrderParams(&CancelReplaceOrderRequest{
+		Symbol:                     currency.NewPair(currency.LTC, currency.BTC),
+		Side:                       order.Buy.String(),
+		TradeType:                  BinanceRequestParamsOrderLimit,
+		CancelReplaceMode:          BinanceCancelReplaceModeStopOnFailure,
+		TimeInForce:                BinanceRequestParamsTimeGTC,
+		Quantity:                   1,
+		Price:                      0.0025,
+		CancelOrderID:              12345,
+		CancelNewClientOrderID:     "cancel-client-id",
+		NewClientOrderID:           "new-client-id",
+		CancelRestrictions:         BinanceCancelRestrictionOnlyNew,
+		OrderRateLimitExceededMode: BinanceOrderRateLimitExceededModeCancelOnly,
+		RecvWindow:                 5000,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	expected := map[string]string{
+		"symbol":                     "LTCBTC",
+		"side":                       "BUY",
+		"type":                       "LIMIT",
+		"cancelReplaceMode":          "STOP_ON_FAILURE",
+		"timeInForce":                "GTC",
+		"quantity":                   "1",
+		"price":                      "0.0025",
+		"cancelOrderId":              "12345",
+		"cancelNewClientOrderId":     "cancel-client-id",
+		"newClientOrderId":           "new-client-id",
+		"cancelRestrictions":         "ONLY_NEW",
+		"orderRateLimitExceededMode": "CANCEL_ONLY",
+		"recvWindow":                 "5000",
+	}
+	for key, value := range expected {
+		if params.Get(key) != value {
+			t.Fatalf("received %q for %s, expected %q", params.Get(key), key, value)
+		}
+	}
+}
+
 func TestGetHistoricTrades(t *testing.T) {
 	t.Parallel()
 	currencyPair, err := currency.NewPairFromString("BTCUSDT")

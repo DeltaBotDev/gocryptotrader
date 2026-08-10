@@ -387,6 +387,121 @@ type NewOrderRequest struct {
 	NewOrderRespType string
 }
 
+// CancelReplaceModeType defines how cancel-replace handles cancel failure.
+type CancelReplaceModeType string
+
+var (
+	// BinanceCancelReplaceModeStopOnFailure prevents new order placement when cancellation fails.
+	BinanceCancelReplaceModeStopOnFailure = CancelReplaceModeType("STOP_ON_FAILURE")
+	// BinanceCancelReplaceModeAllowFailure attempts the new order even when cancellation fails.
+	BinanceCancelReplaceModeAllowFailure = CancelReplaceModeType("ALLOW_FAILURE")
+)
+
+// CancelRestrictionsType defines the permitted order status for cancellation.
+type CancelRestrictionsType string
+
+var (
+	// BinanceCancelRestrictionOnlyNew cancels only orders with NEW status.
+	BinanceCancelRestrictionOnlyNew = CancelRestrictionsType("ONLY_NEW")
+	// BinanceCancelRestrictionOnlyPartiallyFilled cancels only orders with PARTIALLY_FILLED status.
+	BinanceCancelRestrictionOnlyPartiallyFilled = CancelRestrictionsType("ONLY_PARTIALLY_FILLED")
+)
+
+// OrderRateLimitExceededModeType defines how cancel-replace behaves when order rate limits are exceeded.
+type OrderRateLimitExceededModeType string
+
+var (
+	// BinanceOrderRateLimitExceededModeDoNothing only cancels when order rate limits have not been exceeded.
+	BinanceOrderRateLimitExceededModeDoNothing = OrderRateLimitExceededModeType("DO_NOTHING")
+	// BinanceOrderRateLimitExceededModeCancelOnly always attempts cancellation.
+	BinanceOrderRateLimitExceededModeCancelOnly = OrderRateLimitExceededModeType("CANCEL_ONLY")
+)
+
+// CancelReplaceOrderRequest request type for cancelling an open order and placing a replacement order.
+type CancelReplaceOrderRequest struct {
+	Symbol                     currency.Pair
+	Side                       string
+	TradeType                  RequestParamsOrderType
+	CancelReplaceMode          CancelReplaceModeType
+	TimeInForce                RequestParamsTimeForceType
+	Quantity                   float64
+	QuoteOrderQty              float64
+	Price                      float64
+	CancelNewClientOrderID     string
+	CancelOrigClientOrderID    string
+	CancelOrderID              int64
+	NewClientOrderID           string
+	StrategyID                 int64
+	StrategyType               int64
+	StopPrice                  float64
+	TrailingDelta              int64
+	IcebergQty                 float64
+	NewOrderRespType           string
+	SelfTradePreventionMode    string
+	CancelRestrictions         CancelRestrictionsType
+	OrderRateLimitExceededMode OrderRateLimitExceededModeType
+	PegPriceType               string
+	PegOffsetValue             int64
+	PegOffsetType              string
+	RecvWindow                 float64
+}
+
+// CancelReplaceOrderResponse is the return structured response from the exchange.
+type CancelReplaceOrderResponse struct {
+	Code             int                       `json:"code"`
+	Msg              string                    `json:"msg"`
+	CancelResult     string                    `json:"cancelResult"`
+	NewOrderResult   string                    `json:"newOrderResult"`
+	CancelResponse   CancelReplaceOrderDetails `json:"cancelResponse"`
+	NewOrderResponse CancelReplaceOrderDetails `json:"newOrderResponse"`
+}
+
+// CancelReplaceOrderDetails holds order details returned by a cancel-replace request.
+type CancelReplaceOrderDetails struct {
+	Symbol                  string      `json:"symbol"`
+	OrigClientOrderID       string      `json:"origClientOrderId"`
+	OrderID                 int64       `json:"orderId"`
+	OrderListID             int64       `json:"orderListId"`
+	ClientOrderID           string      `json:"clientOrderId"`
+	TransactionTime         time.Time   `json:"transactTime"`
+	Price                   float64     `json:"price,string"`
+	OrigQty                 float64     `json:"origQty,string"`
+	ExecutedQty             float64     `json:"executedQty,string"`
+	OrigQuoteOrderQty       float64     `json:"origQuoteOrderQty,string"`
+	CummulativeQuoteQty     float64     `json:"cummulativeQuoteQty,string"`
+	Status                  string      `json:"status"`
+	TimeInForce             string      `json:"timeInForce"`
+	Type                    string      `json:"type"`
+	Side                    string      `json:"side"`
+	WorkingTime             time.Time   `json:"workingTime"`
+	Fills                   []OrderFill `json:"fills"`
+	SelfTradePreventionMode string      `json:"selfTradePreventionMode"`
+	IcebergQty              float64     `json:"icebergQty,string"`
+	PreventedMatchID        int64       `json:"preventedMatchId"`
+	PreventedQuantity       float64     `json:"preventedQuantity,string"`
+	StopPrice               float64     `json:"stopPrice,string"`
+	StrategyID              int64       `json:"strategyId"`
+	StrategyType            int64       `json:"strategyType"`
+	TrailingDelta           int64       `json:"trailingDelta"`
+	TrailingTime            int64       `json:"trailingTime"`
+	UsedSOR                 bool        `json:"usedSor"`
+	WorkingFloor            string      `json:"workingFloor"`
+	PegPriceType            string      `json:"pegPriceType"`
+	PegOffsetType           string      `json:"pegOffsetType"`
+	PegOffsetValue          int64       `json:"pegOffsetValue"`
+	PeggedPrice             float64     `json:"peggedPrice,string"`
+	ExpiryReason            string      `json:"expiryReason"`
+}
+
+// OrderFill represents a fill in an order response.
+type OrderFill struct {
+	Price           float64 `json:"price,string"`
+	Qty             float64 `json:"qty,string"`
+	Commission      float64 `json:"commission,string"`
+	CommissionAsset string  `json:"commissionAsset"`
+	TradeID         int64   `json:"tradeId"`
+}
+
 // NewOrderResponse is the return structured response from the exchange
 type NewOrderResponse struct {
 	Code            int       `json:"code"`
