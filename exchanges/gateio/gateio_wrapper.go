@@ -1041,17 +1041,25 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 	s.Pair = s.Pair.Upper()
 	switch s.AssetType {
 	case asset.Spot, asset.Margin, asset.CrossMargin:
-		if s.Type != order.Limit {
-			return nil, errOnlyLimitOrderType
+		amount := s.Amount
+		price := s.Price
+		timeInForce := gtcTIF
+		if s.Type == order.Market {
+			price = 0
+			timeInForce = iocTIF
+			if s.Side.IsLong() && s.QuoteAmount > 0 {
+				amount = s.QuoteAmount
+			}
 		}
 		sOrder, err := g.PlaceSpotOrder(ctx, &CreateOrderRequestData{
 			Side:         orderTypeFormat,
 			Type:         s.Type.Lower(),
 			Account:      g.assetTypeToString(s.AssetType),
-			Amount:       types.Number(s.Amount),
-			Price:        types.Number(s.Price),
+			Amount:       types.Number(amount),
+			Price:        types.Number(price),
 			CurrencyPair: s.Pair,
 			Text:         s.ClientOrderID,
+			TimeInForce:  timeInForce,
 		})
 		if err != nil {
 			return nil, err

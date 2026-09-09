@@ -633,7 +633,8 @@ func (g *Gateio) PlaceSpotOrder(ctx context.Context, arg *CreateOrderRequestData
 	if arg.CurrencyPair.IsInvalid() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	if arg.Type != "limit" {
+	arg.Type = strings.ToLower(arg.Type)
+	if arg.Type != "limit" && arg.Type != "market" {
 		return nil, errOnlyLimitOrderType
 	}
 	arg.Side = strings.ToLower(arg.Side)
@@ -656,7 +657,13 @@ func (g *Gateio) PlaceSpotOrder(ctx context.Context, arg *CreateOrderRequestData
 	if arg.Amount <= 0 {
 		return nil, errInvalidAmount
 	}
-	if arg.Price <= 0 {
+	if arg.Type == "limit" && arg.Price <= 0 {
+		return nil, errInvalidPrice
+	}
+	if arg.Type == "market" && arg.TimeInForce == "" {
+		arg.TimeInForce = iocTIF
+	}
+	if arg.Type == "market" && arg.Price < 0 {
 		return nil, errInvalidPrice
 	}
 	var response *SpotOrder
